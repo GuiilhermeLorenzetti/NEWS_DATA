@@ -3,6 +3,7 @@ from groq import Groq
 import os
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 df = pd.read_csv('news_data.csv')

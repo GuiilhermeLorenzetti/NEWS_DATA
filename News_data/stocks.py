@@ -4,6 +4,7 @@ import yfinance as yf
 # Baixar os dados dos últimos 2 dias para a Apple
 data = yf.download("AAPL", period="2d")
 
+
 if not data.empty and len(data) >= 2:
     # Pegar os valores de fechamento
     preco_fechamento_hoje = data['Close'].iloc[-1]
