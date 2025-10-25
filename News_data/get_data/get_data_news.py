@@ -99,7 +99,7 @@ def main():
         final_df = pd.concat(all_data, ignore_index=True)
         
         # Salva em CSV
-        final_df.to_csv('news_data_07_10.csv', index=False)
+        final_df.to_csv('raw_data/news_data_25_10.csv', index=False)
         
         print(f"\n{'='*60}")
         print(f"✓ Processo concluído!")
