@@ -5,8 +5,8 @@ import hashlib
 import os
 from dotenv import load_dotenv
 
-# Carrega as variáveis de ambiente
-load_dotenv()
+# Carrega as variáveis de ambiente (que está na mesma pasta)
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
 def generate_hash(ticket: str, date: str) -> str:
     """
@@ -25,7 +25,8 @@ def get_db_connection():
             port=os.getenv('PORT'),
             database=os.getenv('DATABASE'),
             user=os.getenv('DATABASE_USER', 'postgres'),  # Assumindo usuário padrão se não especificado
-            password=os.getenv('DATABASE_PASS')
+            password=os.getenv('DATABASE_PASS'),
+            sslmode='require'
         )
         return connection
     except Exception as e:

@@ -8,8 +8,8 @@ import psycopg2
 import hashlib
 from groq import Groq
 
-# Carrega as variáveis do arquivo .env
-load_dotenv()
+# Carrega as variáveis do arquivo .env (que está na mesma pasta)
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
 # Configurações da API
 API_KEY_NEWS = os.getenv('API_KEY_NEWS')
@@ -38,7 +38,8 @@ def get_db_connection():
             port=os.getenv('PORT'),
             database=os.getenv('DATABASE'),
             user=os.getenv('DATABASE_USER', 'postgres'),
-            password=os.getenv('DATABASE_PASS')
+            password=os.getenv('DATABASE_PASS'),
+            sslmode='require'
         )
         return connection
     except Exception as e:
@@ -107,21 +108,21 @@ def get_news_data(url, query, api_key):
                 return pd.DataFrame()
                 
         elif response.status_code == 401:
-            print("❌ Erro de autenticação - Verifique sua API Key")
+            print("ERRO de autenticacao - Verifique sua API Key")
             return pd.DataFrame()
         elif response.status_code == 429:
-            print("❌ Limite de requisições excedido - Aguarde um momento")
+            print("ERRO - Limite de requisicoes excedido - Aguarde um momento")
             return pd.DataFrame()
         else:
-            print(f"❌ Erro HTTP {response.status_code}")
+            print(f"ERRO HTTP {response.status_code}")
             print(response.text)
             return pd.DataFrame()
 
     except requests.exceptions.RequestException as e:
-        print(f"❌ Erro de conexão: {e}")
+        print(f"ERRO de conexao: {e}")
         return pd.DataFrame()
     except Exception as e:
-        print(f"❌ Erro inesperado: {e}")
+        print(f"ERRO inesperado: {e}")
         return pd.DataFrame()
 
 def insert_news_data(df: pd.DataFrame):
@@ -207,31 +208,65 @@ def create_news_table():
         cursor.close()
         connection.close()
 
+def test_db_connection():
+    """
+    Testa a conexão com o banco de dados antes de iniciar o processamento
+    """
+    print("\n" + "="*60)
+    print("TESTANDO CONEXAO COM O BANCO DE DADOS...")
+    print("="*60)
+    
+    connection = get_db_connection()
+    if connection is None:
+        print("ERRO - FALHA: Nao foi possivel conectar ao banco de dados")
+        print("Verifique suas credenciais no arquivo .env")
+        return False
+    
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT version();")
+        version = cursor.fetchone()
+        print(f"OK - Conexao estabelecida com sucesso!")
+        print(f"  PostgreSQL version: {version[0]}")
+        cursor.close()
+        connection.close()
+        return True
+    except Exception as e:
+        print(f"ERRO ao testar conexao: {e}")
+        if connection:
+            connection.close()
+        return False
+
 def main():
     """
     Função principal que processa todas as empresas: coleta notícias, analisa sentimento e salva no banco
     """
+    # Testa conexão com o banco ANTES de iniciar o processamento
+    if not test_db_connection():
+        print("\nINTERROMPENDO: Script nao sera executado devido a falha na conexao com o banco")
+        return
+    
     url = 'https://newsapi.org/v2/everything'
     
     # Cria a tabela se não existir
-    print("Verificando/criando tabela no banco...")
+    print("\nVerificando/criando tabela no banco...")
     create_news_table()
     
     all_data = []
     
     for i, company in enumerate(companies):
         # Busca dados da empresa
-        df = get_data(url, company, API_KEY_NEWS)
+        df = get_news_data(url, company, API_KEY_NEWS)
         
         if not df.empty:
-            print(f"✓ Dados de {company} coletados ({len(df)} artigos)")
+            print(f"OK - Dados de {company} coletados ({len(df)} artigos)")
             
             # Analisa sentimento para cada notícia
             print(f"Analisando sentimento para {company}...")
             sentiments = []
             
             for index, row in df.iterrows():
-                print(f"  Processando notícia {index + 1}/{len(df)}: {row['title'][:50]}...")
+                print(f"  Processando noticia {index + 1}/{len(df)}: {row['title'][:50]}...")
                 sentiment = analyze_news_sentiment(row['description'])
                 sentiments.append(sentiment)
                 
@@ -242,7 +277,7 @@ def main():
             df['sentiment'] = sentiments
             
             all_data.append(df)
-            print(f"✓ Análise de sentimento para {company} concluída")
+            print(f"OK - Analise de sentimento para {company} concluida")
         
         # Delay entre requisições para evitar rate limit (exceto na última)
         if i < len(companies) - 1:
@@ -259,19 +294,19 @@ def main():
         
         if success:
             print(f"\n{'='*60}")
-            print(f"✓ Processo concluído!")
+            print(f"OK - Processo concluido!")
             print(f"Total de artigos processados: {len(final_df)}")
             print(f"Dados salvos no banco PostgreSQL!")
             print(f"\nResumo por empresa:")
             print(final_df['company'].value_counts())
-            print(f"\nDistribuição de sentimentos:")
+            print(f"\nDistribuicao de sentimentos:")
             print(final_df['sentiment'].value_counts())
         else:
             print("Erro ao salvar no banco. Salvando como CSV de backup...")
             final_df.to_csv('raw_data/news_data_with_sentiment_backup.csv', index=False)
             print(f"Dados salvos em: news_data_with_sentiment_backup.csv")
     else:
-        print("\n❌ Nenhum dado foi coletado")
+        print("\nERRO - Nenhum dado foi coletado")
 
 if __name__ == "__main__":
     main()
