@@ -1,0 +1,19 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: "Raw data from bronze layer"
+    schema: bronze
+    tables:
+      - name: news
+        description: "Raw news articles with sentiment analysis"
+      
+      - name: auxiliary_table_tck_name
+        description: "Auxiliary table mapping companies to stock tickers"
+      
+      - name: stocks
+        description: "Raw stock market data"
+
+      - name: insider_transactions
+        description: "Raw insider transactions"
+
