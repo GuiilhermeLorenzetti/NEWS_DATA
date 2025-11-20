@@ -4,3 +4,6 @@ yfinance
 python-dotenv
 psycopg2-binary
 groq
+matplotlib
+seaborn
+sqlalchemy

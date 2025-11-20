@@ -1,0 +1,182 @@
+version: 2
+
+models:
+  - name: stock_insider_transations
+    description: "Aggregated table of insider transactions for stocks, including daily summaries and rolling window metrics."
+    tests:
+      - unique:
+          column_name: "(symbol || '-' || transaction_date)"
+      - not_null:
+          column_name: "(symbol || '-' || transaction_date)"
+    columns:
+      - name: symbol
+        description: "The stock ticker symbol (e.g., AAPL, NFLX)."
+        tests:
+          - not_null
+      - name: transaction_date
+        description: "The date of the insider transaction(s)."
+        tests:
+          - not_null
+      - name: distinct_insiders_active
+        description: "Count of unique insiders who traded on this day."
+        tests:
+          - not_null
+      - name: total_shares_bought
+        description: "Total number of shares bought by insiders on this day."
+      - name: total_shares_sold
+        description: "Total number of shares sold by insiders on this day (negative value)."
+      - name: net_shares_flow
+        description: "Net flow of shares (bought - sold) on this day."
+      - name: total_value_bought
+        description: "Total financial value of shares bought by insiders on this day."
+      - name: total_value_sold
+        description: "Total financial value of shares sold by insiders on this day (negative value)."
+      - name: net_value_flow
+        description: "Net financial flow (value bought - value sold) on this day."
+      - name: total_transactions_count
+        description: "Total number of insider transactions recorded on this day."
+        tests:
+          - not_null
+      - name: previous_activity_date
+        description: "The date of the previous recorded insider activity for this stock."
+      - name: days_since_last_activity
+        description: "Number of days elapsed since the last insider activity."
+      - name: previous_day_net_shares_flow
+        description: "Net shares flow recorded on the previous activity day."
+      - name: change_in_net_shares_flow
+        description: "Change in net shares flow compared to the previous activity day."
+      - name: rolling_5_day_net_shares_flow
+        description: "Sum of net shares flow over the last 5 active days."
+      - name: rolling_5_day_net_value_flow
+        description: "Sum of net financial flow over the last 5 active days."
+      - name: rolling_5_day_avg_net_shares
+        description: "Average net shares flow over the last 5 active days."
+      - name: rolling_5_day_active_insiders
+        description: "Total count of active insiders (non-unique) over the last 5 active days."
+      - name: rolling_5_day_transaction_count
+        description: "Total number of transactions over the last 5 active days."
+      - name: cumulative_net_shares_flow
+        description: "Cumulative net shares flow from the beginning of the dataset."
+      - name: cumulative_net_value_flow
+        description: "Cumulative net financial flow from the beginning of the dataset."
+      - name: cumulative_transaction_count
+        description: "Cumulative count of transactions from the beginning of the dataset."
+      - name: rolling_5_day_sentiment
+        description: "Sentiment indicator based on net shares flow over the last 5 active days (1 = Buy, -1 = Sell, 0 = Neutral)."
+        tests:
+          - accepted_values:
+              values: [1, -1, 0]
+      - name: is_activity_cluster
+        description: "Flag indicating if the activity is part of a cluster (<= 3 days from previous activity)."
+        tests:
+          - accepted_values:
+              values: [0, 1]
+
+  - name: stock_news
+    description: "Aggregated table of news sentiment for stocks, including daily counts and rolling window metrics."
+    tests:
+      - unique:
+          column_name: "(ticket || '-' || news_date)"
+      - not_null:
+          column_name: "(ticket || '-' || news_date)"
+    columns:
+      - name: ticket
+        description: "The stock ticker symbol."
+        tests:
+          - not_null
+      - name: news_date
+        description: "The date the news was published."
+        tests:
+          - not_null
+      - name: daily_news_count
+        description: "Total number of news articles published on this day."
+        tests:
+          - not_null
+      - name: daily_good_news_count
+        description: "Count of news articles with 'good' sentiment on this day."
+      - name: daily_bad_news_count
+        description: "Count of news articles with 'bad' sentiment on this day."
+      - name: daily_neutral_news_count
+        description: "Count of news articles with 'neutral' sentiment on this day."
+      - name: daily_good_news_pct
+        description: "Percentage of news articles with 'good' sentiment on this day."
+      - name: daily_bad_news_pct
+        description: "Percentage of news articles with 'bad' sentiment on this day."
+      - name: daily_neutral_news_pct
+        description: "Percentage of news articles with 'neutral' sentiment on this day."
+      - name: rolling_5d_news_count
+        description: "Total number of news articles over the last 5 days."
+      - name: rolling_5d_good_news_count
+        description: "Count of 'good' news articles over the last 5 days."
+      - name: rolling_5d_bad_news_count
+        description: "Count of 'bad' news articles over the last 5 days."
+      - name: rolling_5d_neutral_news_count
+        description: "Count of 'neutral' news articles over the last 5 days."
+      - name: daily_sentiment_score
+        description: "Daily sentiment score calculated as (Good - Bad)."
+      - name: rolling_5d_sentiment_score
+        description: "Rolling 5-day sentiment score calculated as (Good - Bad) over the window."
+
+  - name: stock_transations
+    description: "Enriched stock transaction data with technical indicators and moving averages."
+    tests:
+      - unique:
+          column_name: "(ticket || '-' || trading_date)"
+      - not_null:
+          column_name: "(ticket || '-' || trading_date)"
+    columns:
+      - name: ticket
+        description: "The stock ticker symbol."
+        tests:
+          - not_null
+      - name: trading_date
+        description: "The date of the trading session."
+        tests:
+          - not_null
+      - name: close_price
+        description: "Closing price of the stock on this day."
+        tests:
+          - not_null
+      - name: low_price
+        description: "Lowest price of the stock on this day."
+      - name: trade_volume
+        description: "Total trading volume on this day."
+        tests:
+          - not_null
+      - name: close_price_yesterday
+        description: "Closing price of the stock on the previous trading day."
+      - name: price_change_1d
+        description: "Absolute change in closing price compared to the previous day."
+      - name: price_change_pct_1d
+        description: "Percentage change in closing price compared to the previous day."
+      - name: volume_1d
+        description: "Trading volume on the previous trading day."
+      - name: volume_change_1d
+        description: "Absolute change in trading volume compared to the previous day."
+      - name: ma5_close_price
+        description: "5-day moving average of the closing price."
+      - name: ma5_volume
+        description: "5-day moving average of the trading volume."
+      - name: max_5d_close_price
+        description: "Maximum closing price over the last 5 days."
+      - name: min_5d_close_price
+        description: "Minimum closing price over the last 5 days."
+      - name: min_5d_low_price
+        description: "Minimum low price over the last 5 days."
+      - name: max_5d_volume
+        description: "Maximum trading volume over the last 5 days."
+      - name: price_range_5d
+        description: "Price range (Max Close - Min Close) over the last 5 days."
+      - name: price_percentile_5d
+        description: "Current price position relative to the 5-day range (0-100)."
+      - name: stddev_5d_close_price
+        description: "Standard deviation of the closing price over the last 5 days."
+      - name: distance_from_ma5
+        description: "Absolute difference between current price and 5-day moving average."
+      - name: distance_pct_from_ma5
+        description: "Percentage difference between current price and 5-day moving average."
+      - name: price_direction_1d
+        description: "Direction of price movement (1 = Up, -1 = Down, 0 = Unchanged)."
+        tests:
+          - accepted_values:
+              values: [1, -1, 0]
