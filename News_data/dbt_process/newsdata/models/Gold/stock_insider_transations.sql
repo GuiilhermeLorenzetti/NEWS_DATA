@@ -3,76 +3,75 @@ WITH daily_insider_summary AS (
         symbol,
         transaction_date,
         
-        -- Contagem de insiders únicos que operaram no dia
+        -- Count of unique insiders active on the day
         COUNT(DISTINCT name) AS distinct_insiders_active,
         
-        -- Volume de Compra/Venda (ações)
+        -- Buy/Sell Volume (shares)
         SUM(CASE WHEN "change" > 0 THEN "change" ELSE 0 END) AS total_shares_bought,
-        SUM(CASE WHEN "change" < 0 THEN "change" ELSE 0 END) AS total_shares_sold, -- Valor será negativo
+        SUM(CASE WHEN "change" < 0 THEN "change" ELSE 0 END) AS total_shares_sold, -- Value will be negative
         SUM("change") AS net_shares_flow,
         
-        -- Volume de Compra/Venda (financeiro)
+        -- Buy/Sell Volume (financial)
         SUM(CASE WHEN "change" > 0 THEN transaction_price * "change" ELSE 0 END) AS total_value_bought,
-        SUM(CASE WHEN "change" < 0 THEN transaction_price * "change" ELSE 0 END) AS total_value_sold, -- Valor será negativo
+        SUM(CASE WHEN "change" < 0 THEN transaction_price * "change" ELSE 0 END) AS total_value_sold, -- Value will be negative
         SUM(transaction_price * "change") AS net_value_flow,
         
-        -- Contagem de transações
+        -- Transaction count
         COUNT(*) AS total_transactions_count
         
     FROM 
-        silver.insider_transactions_stocks -- Assumindo que sua tabela silver se chama assim
+        {{ ref('insider_transactions_stocks') }}
     GROUP BY 
         symbol, transaction_date
 ),
 
--- Passo 2: Aplicar funções de janela para enriquecimento (o "estilo" que você pediu)
+-- Step 2: Apply window functions for enrichment
 final_metrics AS (
     SELECT
-        -- Chaves e dados base
-        dis.symbol, -- Chave: O ticker da ação (ex: AAPL, NFLX)
-        dis.transaction_date, -- Chave: A data da(s) transação(ões)
+        -- Keys and base data
+        dis.symbol, -- Key: Stock ticker (e.g., AAPL, NFLX)
+        dis.transaction_date, -- Key: Transaction date
         
-        -- Métricas do Dia (da CTE)
-        dis.distinct_insiders_active, -- Coluna: Número de insiders únicos ativos no dia
-        dis.total_shares_bought, -- Coluna: Total de ações compradas por insiders no dia
-        dis.total_shares_sold, -- Coluna: Total de ações vendidas por insiders no dia (negativo)
-        dis.net_shares_flow, -- Coluna: Saldo líquido de ações (compradas - vendidas) no dia
-        dis.net_value_flow, -- Coluna: Saldo líquido financeiro (valor comprado - valor vendido) no dia
-        dis.total_transactions_count, -- Coluna: Número de transações de insiders no dia
+        -- Daily Metrics (from CTE)
+        dis.distinct_insiders_active, -- Column: Number of unique active insiders on the day
+        dis.total_shares_bought, -- Column: Total shares bought by insiders on the day
+        dis.total_shares_sold, -- Column: Total shares sold by insiders on the day (negative)
+        dis.net_shares_flow, -- Column: Net shares flow (bought - sold) on the day
+        dis.net_value_flow, -- Column: Net financial flow (value bought - value sold) on the day
+        dis.total_transactions_count, -- Column: Number of insider transactions on the day
         
-        -- Métricas Comparativas (D-1 vs D-prev_active)
-        LAG(dis.transaction_date, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date) AS previous_activity_date, -- Coluna: Data da última atividade de insider anterior
-        -- Nota: DATE_DIFF é do BigQuery/Spark. Em PostgreSQL, use a subtração de datas.
-        (dis.transaction_date - LAG(dis.transaction_date, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date)) AS days_since_last_activity, -- Coluna: Dias desde a última atividade de insider (PostgreSQL)
+        -- Comparative Metrics (D-1 vs D-prev_active)
+        LAG(dis.transaction_date, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date) AS previous_activity_date, -- Column: Date of the last previous insider activity
+        -- Note: DATE_DIFF is for BigQuery/Spark. In PostgreSQL, use date subtraction.
+        (dis.transaction_date - LAG(dis.transaction_date, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date)) AS days_since_last_activity, -- Column: Days since last insider activity
         
-        LAG(dis.net_shares_flow, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date) AS previous_day_net_shares_flow, -- Coluna: Fluxo líquido de ações do dia de atividade anterior
-        dis.net_shares_flow - LAG(dis.net_shares_flow, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date) AS change_in_net_shares_flow, -- Coluna: Variação no fluxo líquido de ações vs. dia anterior
+        LAG(dis.net_shares_flow, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date) AS previous_day_net_shares_flow, -- Column: Net shares flow of the previous activity day
+        dis.net_shares_flow - LAG(dis.net_shares_flow, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date) AS change_in_net_shares_flow, -- Column: Change in net shares flow vs. previous day
         
-        -- Métricas de Janela Móvel (Rolling) - (Baseado nos últimos 5 *dias de atividade de insider*)
-        -- Este é o mesmo estilo 'ROWS BETWEEN 4 PRECEDING' do seu exemplo
-        SUM(dis.net_shares_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_net_shares_flow, -- Coluna: Fluxo líquido de ações nos últimos 5 dias de atividade
-        SUM(dis.net_value_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_net_value_flow, -- Coluna: Fluxo líquido financeiro nos últimos 5 dias de atividade
-        AVG(dis.net_shares_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_avg_net_shares, -- Coluna: Média do fluxo líquido de ações nos últimos 5 dias de atividade
-        SUM(dis.distinct_insiders_active) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_active_insiders, -- Coluna: Contagem de insiders ativos (não-únicos) nos últimos 5 dias de atividade
-        SUM(dis.total_transactions_count) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_transaction_count, -- Coluna: Soma de transações nos últimos 5 dias de atividade
+        -- Rolling Window Metrics (Based on last 5 *insider activity days*)
+        -- This is the same style 'ROWS BETWEEN 4 PRECEDING' as your example
+        SUM(dis.net_shares_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_net_shares_flow, -- Column: Net shares flow in the last 5 activity days
+        SUM(dis.net_value_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_net_value_flow, -- Column: Net financial flow in the last 5 activity days
+        AVG(dis.net_shares_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_avg_net_shares, -- Column: Average net shares flow in the last 5 activity days
+        SUM(dis.distinct_insiders_active) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_active_insiders, -- Column: Count of active insiders (non-unique) in the last 5 activity days
+        SUM(dis.total_transactions_count) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_5_day_transaction_count, -- Column: Sum of transactions in the last 5 activity days
         
-        -- Métricas Cumulativas (Desde o início)
-        SUM(dis.net_shares_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_net_shares_flow, -- Coluna: Fluxo líquido acumulado de ações (posição histórica)
-        SUM(dis.net_value_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_net_value_flow, -- Coluna: Fluxo líquido financeiro acumulado
-        SUM(dis.total_transactions_count) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_transaction_count, -- Coluna: Contagem acumulada de transações
+        -- Cumulative Metrics (Since inception)
+        SUM(dis.net_shares_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_net_shares_flow, -- Column: Cumulative net shares flow (historical position)
+        SUM(dis.net_value_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_net_value_flow, -- Column: Cumulative net financial flow
+        SUM(dis.total_transactions_count) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_transaction_count,
 
-        -- Sinais e Indicadores (Exemplos)
-        SIGN(SUM(dis.net_shares_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)) AS rolling_5_day_sentiment, -- Coluna: Sentimento (1=compra líquida, -1=venda líquida, 0=neutro) nos últimos 5 dias de atividade
+        -- Signals and Indicators (Examples)
+        SIGN(SUM(dis.net_shares_flow) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)) AS rolling_5_day_sentiment, -- Column: Sentiment (1=net buy, -1=net sell, 0=neutral) in the last 5 activity days
         CASE 
             WHEN (dis.transaction_date - LAG(dis.transaction_date, 1) OVER (PARTITION BY dis.symbol ORDER BY dis.transaction_date)) <= 3
             THEN 1 ELSE 0 
-        END AS is_activity_cluster -- Coluna: Flag (1/0) se a atividade faz parte de um 'cluster' (<= 3 dias da atividade anterior) (PostgreSQL)
-
+        END AS is_activity_cluster -- Column: Flag (1/0) if activity is part of a 'cluster' (<= 3 days from previous activity)
     FROM 
         daily_insider_summary dis
 )
--- Seleção final para a tabela ou view 'gold'
+-- Final selection for the gold table or view
 SELECT 
     *
 FROM 
-    final_metrics;
+    final_metrics
