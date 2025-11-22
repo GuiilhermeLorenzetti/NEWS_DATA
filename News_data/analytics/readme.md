@@ -1,42 +1,35 @@
-📊 Market Intelligence: Análise Multivariada de Ações (Sentimento & Insiders)
-🔎 Contexto do Projeto
-Neste projeto, desenvolvi um pipeline de análise de dados financeiros para investigar a correlação entre três pilares fundamentais do mercado de ações: Preço (Price Action), Fluxo de Informação (News Sentiment) e Movimentação Interna (Insider Trading).
+📊 Market Intelligence: Multivariate Equity Analysis (Sentiment & Insiders)
 
-O objetivo não foi apenas plotar gráficos de preço, mas entender os "drivers" invisíveis que antecipam movimentos de mercado. Os dados foram processados em uma arquitetura Medallion (Bronze/Silver/Gold) e consumidos via Python diretamente de um Data Warehouse PostgreSQL.
+🔎 Project Context In this project, I developed a financial data analysis pipeline to investigate the correlation between three fundamental pillars of the stock market: Price Action, News Sentiment, and Insider Trading.
 
-🧠 Principais Insights da Análise
-Ao cruzar os dados transacionais com o sentimento de notícias e operações de diretores (C-Level), três padrões claros emergiram:
+The goal was not just to plot price charts, but to understand the invisible "drivers" that anticipate market movements. The data was processed using a Medallion Architecture (Bronze/Silver/Gold) and queried via Python directly from a PostgreSQL Data Warehouse.
 
-1. A Batalha dos Insiders: Sinal de Alerta ou Realização de Lucros?
-Uma análise superficial sugeriria que os insiders apenas venderam ações no período. No entanto, ao aprofundar no Net Value Flow (Fluxo Financeiro Líquido), identificamos um comportamento nuançado:
+🧠 Key Analysis Insights By cross-referencing transactional data with news sentiment and executive (C-Level) operations, three clear patterns emerged:
 
-Volume de Venda Massivo: Existe uma pressão vendedora predominante, especialmente em papéis de alta performance como NVDA e META. Em NVDA, o volume de venda superou o de compra em quase 10x.
+1. The Insider Battle: Warning Sign or Profit Taking? A superficial analysis would suggest that insiders only sold shares during the period. However, by diving deeper into the Net Value Flow, we identified a nuanced behavior:
 
-O "Smart Money" na Compra: Ao contrário do senso comum, houve compras estratégicas (barras verdes nos gráficos). Embora menores em volume financeiro, essas operações são estatisticamente mais relevantes pois ocorrem contra a tendência de liquidez interna. Quando um insider compra enquanto seus pares vendem, isso gera um forte sinal de confiança no longo prazo (valuation descontado).
+Massive Sell Volume: There is a predominant selling pressure, especially in high-performance stocks like NVDA and META. In NVDA, sell volume outweighed buy volume by nearly 10x.
 
-2. A "Economia da Atenção" e Liquidez
-Identifiquei uma correlação positiva direta (0.56) entre a contagem de notícias diárias e o volume negociado, independentemente do viés da notícia.
+"Smart Money" on the Buy Side: Contrary to common belief, there were strategic purchases (green bars in the charts). Although smaller in financial volume, these trades are statistically more significant as they occur against the internal liquidity trend. When an insider buys while peers are selling, it signals strong long-term confidence (discounted valuation).
 
-Insight: O mercado reage à presença da informação, não apenas à qualidade dela. Dias com pico de notícias ("Hype") atraem liquidez imediata, validando a tese de que algoritmos de HFT e Day Traders utilizam o fluxo de mídia como trigger de volatilidade, criando oportunidades de entrada/saída independente se a notícia é "Boa" ou "Ruim".
+2. The "Attention Economy" and Liquidity I identified a direct positive correlation (0.56) between the daily news count and trading volume, regardless of the news bias.
 
-3. Intensidade do Sentimento como Vetor de Volatilidade
-Utilizando boxplots para medir a dispersão de preço baseada no sentiment_score, ficou provado que notícias extremas (muito positivas ou muito negativas) alargam o range de preço do dia.
+Insight: The market reacts to the presence of information, not just its quality. Days with news peaks ("Hype") attract immediate liquidity, validating the thesis that HFT algorithms and Day Traders use media flow as a volatility trigger, creating entry/exit opportunities regardless of whether the news is "Good" or "Bad."
 
-Diferente de dias com "sentimento neutro" (onde o preço tende a andar de lado), dias com alta intensidade de sentimento apresentam as maiores variações percentuais (price_change_pct). Isso sugere que estratégias de Long/Short ou opções (Volatility Arbitrage) são mais eficientes quando filtradas pela intensidade do fluxo de notícias.
+3. Sentiment Intensity as a Volatility Vector Using boxplots to measure price dispersion based on sentiment_score, it was proven that extreme news (highly positive or highly negative) widens the daily price range.
 
-🛠️ Stack Tecnológico Utilizado
-Linguagem: Python 3.12
+Unlike days with "neutral sentiment" (where price tends to move sideways), days with high sentiment intensity show the largest percentage variations (price_change_pct). This suggests that Long/Short or options strategies (Volatility Arbitrage) are more efficient when filtered by news flow intensity.
 
-Banco de Dados: PostgreSQL (Render) via SQLAlchemy
+🛠️ Tech Stack Used
 
-Análise de Dados: Pandas & NumPy para manipulação vetorial.
+Language: Python 3.12
 
-Visualização: Matplotlib & Seaborn (focados em gráficos de eixo duplo para correlação).
+Database: PostgreSQL (Render) via SQLAlchemy
 
-Engenharia: Uso de variáveis de ambiente (.env) para segurança de credenciais e conexão direta com tabelas Gold.
+Data Analysis: Pandas & NumPy for vector manipulation.
 
-📂 Visualizações Chave
-(Aqui você insere as imagens que geramos, ex: 2_preco_vs_insider.png e 6_news_volume_scatter.png)
+Visualization: Matplotlib & Seaborn (focused on dual-axis charts for correlation).
 
-💡 Conclusão
-Esta análise demonstra que operar ou analisar o preço isoladamente é ineficiente. A integração de dados alternativos (Notícias e Insiders) oferece uma vantagem competitiva ("Alpha"), permitindo antecipar picos de volatilidade e entender se uma queda de preço é um movimento de pânico do varejo ou uma saída estruturada da diretoria.
+Engineering: Use of environment variables (.env) for credential security and direct connection to Gold tables.
+
+💡 Conclusion This analysis demonstrates that trading or analyzing price in isolation is inefficient. The integration of alternative data (News and Insiders) offers a competitive advantage ("Alpha"), allowing one to anticipate volatility spikes and understand if a price drop is retail panic or a structured exit by the board.
